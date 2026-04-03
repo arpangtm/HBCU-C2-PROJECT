@@ -9,11 +9,19 @@ struct AudioDetailsView: View {
     @State private var showingSubmitConfirmation = false
     @State private var isPressed = false
 
+    private var statusColor: Color {
+        if isPressed { return Color(.systemGray5) }
+        return audioRecorder.hasRecording ? Color(.systemGreen).opacity(0.08) : Color(.systemBlue).opacity(0.06)
+    }
+
     var body: some View {
         ZStack {
-            // Full-screen tap-and-hold area
-            Color(isPressed ? .darkGray : (audioRecorder.hasRecording ? .systemGreen : .systemBlue))
+            Color(.systemBackground)
                 .ignoresSafeArea()
+
+            Color(statusColor)
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.2), value: isPressed)
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { _ in
@@ -32,22 +40,25 @@ struct AudioDetailsView: View {
                         }
                 )
 
-            VStack(spacing: 32) {
+            VStack(spacing: 24) {
                 Spacer()
 
-                Image(systemName: isPressed ? "mic.fill" : (audioRecorder.hasRecording ? "checkmark.circle.fill" : "mic.circle"))
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 120, height: 120)
-                    .foregroundColor(.white)
-                    .scaleEffect(isPressed ? 1.3 : 1.0)
-                    .animation(.easeInOut(duration: 0.15), value: isPressed)
+                Image(systemName: isPressed ? "mic.fill" : (audioRecorder.hasRecording ? "checkmark.circle" : "mic.circle"))
+                    .font(.system(size: 80, weight: .light))
+                    .foregroundColor(isPressed ? .primary : (audioRecorder.hasRecording ? Color(.systemGreen) : .accentColor))
+                    .scaleEffect(isPressed ? 1.15 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
 
-                Text(isPressed ? "Recording... Release to send" : "Tap and hold anywhere to record")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundColor(.white)
+                Text(isPressed ? "Recording… Release to send" : "Hold anywhere to record")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 32)
+
+                Text(isPressed ? "" : "Tap and hold anywhere on screen")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .animation(.easeInOut, value: isPressed)
 
                 Spacer()
             }
@@ -60,9 +71,6 @@ struct AudioDetailsView: View {
         }
         .onAppear {
             audioRecorder.requestPermission()
-//            ScreenVoiceGuide.shared.speak(
-//                "Tap and hold anywhere on the screen to say any additional things you want admins to know. Release to send the message."
-//            )
         }
         .onDisappear {
             ScreenVoiceGuide.shared.stop()
