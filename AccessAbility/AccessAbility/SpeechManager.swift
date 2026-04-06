@@ -8,6 +8,7 @@
 import Foundation
 import AVFoundation
 
+@MainActor
 final class SpeechManager: NSObject, AVSpeechSynthesizerDelegate {
     static let shared = SpeechManager()
 

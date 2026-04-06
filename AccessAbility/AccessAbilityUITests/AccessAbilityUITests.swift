@@ -8,29 +8,58 @@
 import XCTest
 
 final class AccessAbilityUITests: XCTestCase {
+    private var app: XCUIApplication!
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+        app = XCUIApplication()
+        app.launchArguments += ["-ui-testing", "-use-mock-camera-preview"]
     }
 
     override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        app = nil
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app = XCUIApplication()
+    func testHomeScreenShowsFourSupportTiles() throws {
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        XCTAssertTrue(app.buttons["home.tile.navigation"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["home.tile.readSigns"].exists)
+        XCTAssertTrue(app.buttons["home.tile.identifyObject"].exists)
+        XCTAssertTrue(app.buttons["home.tile.requestHelp"].exists)
+    }
+
+    @MainActor
+    func testPlaceholderTilesNavigateToPlaceholderScreens() throws {
+        app.launch()
+
+        app.buttons["home.tile.navigation"].tap()
+        XCTAssertTrue(app.otherElements["navigation.screen"].waitForExistence(timeout: 2))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        app.buttons["home.tile.requestHelp"].tap()
+        XCTAssertTrue(app.otherElements["requestHelp.screen"].waitForExistence(timeout: 2))
+    }
+
+    @MainActor
+    func testCameraScreensShowCaptureAndRetakeFlow() throws {
+        app.launch()
+
+        app.buttons["home.tile.identifyObject"].tap()
+        XCTAssertTrue(app.otherElements["identifyObject.screen"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["camera.capture"].waitForExistence(timeout: 2))
+        app.buttons["camera.capture"].tap()
+        XCTAssertTrue(app.otherElements["camera.result.card"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["camera.retake"].exists)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        app.buttons["home.tile.readSigns"].tap()
+        XCTAssertTrue(app.otherElements["readSigns.screen"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["camera.capture"].waitForExistence(timeout: 2))
+        app.buttons["camera.capture"].tap()
+        XCTAssertTrue(app.otherElements["camera.result.card"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["camera.retake"].exists)
     }
 
     @MainActor
