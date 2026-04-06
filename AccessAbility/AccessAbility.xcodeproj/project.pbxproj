@@ -398,7 +398,9 @@
 				DEVELOPMENT_TEAM = Z76R3U7Y39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera so you can capture objects and street signs and hear a spoken result.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera so you can capture text, objects, and accessibility barriers for spoken results and university reports.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We use the microphone so you can speak onboarding details, choose navigation locations, and record help request notes.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We use speech recognition so you can enter onboarding details and navigation locations by voice.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -432,7 +434,9 @@
 				DEVELOPMENT_TEAM = Z76R3U7Y39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera so you can capture objects and street signs and hear a spoken result.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera so you can capture text, objects, and accessibility barriers for spoken results and university reports.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We use the microphone so you can speak onboarding details, choose navigation locations, and record help request notes.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We use speech recognition so you can enter onboarding details and navigation locations by voice.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

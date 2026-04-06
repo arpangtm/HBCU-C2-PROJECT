@@ -14,16 +14,20 @@ final class CameraCaptureViewModel: NSObject, ObservableObject {
     @Published private(set) var authorizationState: CameraAuthorizationState = .checking
     @Published private(set) var isSessionReady = false
     @Published var isProcessing = false
-    @Published var result: MockAnalysisResult?
+    @Published var result: VisionAnalysisResult?
     @Published var errorMessage: String?
     @Published private(set) var lastCapturedImage: UIImage?
 
     let session = AVCaptureSession()
-    let mode: MockAnalysisMode
-    let usesMockPreview: Bool
+    let mode: VisionAnalysisMode
+    let usesPreviewFallback: Bool
 
     var canCapture: Bool {
-        !isProcessing && authorizationState == .authorized && (usesMockPreview || isSessionReady)
+        !isProcessing && authorizationState == .authorized && (usesPreviewFallback || isSessionReady)
+    }
+
+    var hasPhotoForResult: Bool {
+        usesPreviewFallback || lastCapturedImage != nil
     }
 
     private let analyzingService: AnalyzingService
@@ -32,18 +36,18 @@ final class CameraCaptureViewModel: NSObject, ObservableObject {
     private var isSessionConfigured = false
 
     init(
-        mode: MockAnalysisMode,
-        analyzingService: AnalyzingService = MockAnalyzingService(),
-        usesMockPreview: Bool = ProcessInfo.processInfo.arguments.contains("-use-mock-camera-preview")
+        mode: VisionAnalysisMode,
+        analyzingService: AnalyzingService = LocalVisionAnalyzingService(),
+        usesPreviewFallback: Bool = ProcessInfo.processInfo.arguments.contains("-use-camera-preview-fallback")
     ) {
         self.mode = mode
         self.analyzingService = analyzingService
-        self.usesMockPreview = usesMockPreview
+        self.usesPreviewFallback = usesPreviewFallback
         super.init()
     }
 
     func prepareCamera() {
-        if usesMockPreview {
+        if usesPreviewFallback {
             authorizationState = .authorized
             isSessionReady = true
             errorMessage = nil
@@ -79,7 +83,7 @@ final class CameraCaptureViewModel: NSObject, ObservableObject {
     }
 
     func setSessionActive(_ isActive: Bool) {
-        guard !usesMockPreview, isSessionConfigured else { return }
+        guard !usesPreviewFallback, isSessionConfigured else { return }
 
         sessionQueue.async { [weak self] in
             guard let self else { return }
@@ -98,9 +102,9 @@ final class CameraCaptureViewModel: NSObject, ObservableObject {
         errorMessage = nil
         result = nil
 
-        if usesMockPreview {
+        if usesPreviewFallback {
             lastCapturedImage = nil
-            runMockAnalysis()
+            runCameraAnalysisFallback()
             return
         }
 
@@ -122,7 +126,7 @@ final class CameraCaptureViewModel: NSObject, ObservableObject {
     }
 
     private func configureSessionIfNeeded() {
-        guard !usesMockPreview else { return }
+        guard !usesPreviewFallback else { return }
 
         if isSessionConfigured {
             authorizationState = .authorized
@@ -173,7 +177,7 @@ final class CameraCaptureViewModel: NSObject, ObservableObject {
         }
     }
 
-    private func runMockAnalysis() {
+    private func runCameraAnalysisFallback() {
         isProcessing = true
 
         Task { @MainActor [weak self] in

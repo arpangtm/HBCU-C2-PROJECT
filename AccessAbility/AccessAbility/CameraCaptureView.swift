@@ -4,8 +4,10 @@ import SwiftUI
 struct CameraCaptureScreen: View {
     let title: String
     let prompt: String
-    let demoNote: String
+    let guidanceNote: String
     let introSpeech: String
+    let resultAccessory: ((VisionAnalysisResult, Bool) -> AnyView)?
+    let onResult: ((VisionAnalysisResult, Bool) -> Void)?
 
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var viewModel: CameraCaptureViewModel
@@ -13,14 +15,18 @@ struct CameraCaptureScreen: View {
     init(
         title: String,
         prompt: String,
-        demoNote: String,
+        guidanceNote: String,
         introSpeech: String,
-        mode: MockAnalysisMode
+        mode: VisionAnalysisMode,
+        resultAccessory: ((VisionAnalysisResult, Bool) -> AnyView)? = nil,
+        onResult: ((VisionAnalysisResult, Bool) -> Void)? = nil
     ) {
         self.title = title
         self.prompt = prompt
-        self.demoNote = demoNote
+        self.guidanceNote = guidanceNote
         self.introSpeech = introSpeech
+        self.resultAccessory = resultAccessory
+        self.onResult = onResult
         _viewModel = StateObject(wrappedValue: CameraCaptureViewModel(mode: mode))
     }
 
@@ -67,6 +73,7 @@ struct CameraCaptureScreen: View {
         .onChange(of: viewModel.result) { _, result in
             guard let result else { return }
             SpeechManager.shared.speak(result.spokenMessage, interrupt: true)
+            onResult?(result, viewModel.hasPhotoForResult)
         }
         .onChange(of: viewModel.errorMessage) { _, message in
             guard let message else { return }
@@ -82,9 +89,13 @@ struct CameraCaptureScreen: View {
             Text(prompt)
                 .font(.body)
                 .foregroundStyle(.white.opacity(0.88))
-            Text(demoNote)
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
+            Text(guidanceNote)
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(Color.yellow.opacity(0.95))
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
@@ -99,25 +110,25 @@ struct CameraCaptureScreen: View {
             Group {
                 switch viewModel.authorizationState {
                 case .authorized:
-                    if viewModel.usesMockPreview {
-                        MockCameraPlaceholderView()
+                    if viewModel.usesPreviewFallback {
+                        CameraPreviewFallbackView()
                     } else {
                         CameraPreviewView(session: viewModel.session)
                     }
                 case .checking:
-                    statusPlaceholder(
+                    statusCard(
                         icon: "camera.metering.center.weighted",
                         title: "Getting Camera Ready",
                         detail: "Please wait while we prepare the camera."
                     )
                 case .denied:
-                    statusPlaceholder(
+                    statusCard(
                         icon: "camera.fill.badge.ellipsis",
                         title: "Camera Access Needed",
                         detail: "Allow camera access in Settings to use this screen on your device."
                     )
                 case .unavailable:
-                    statusPlaceholder(
+                    statusCard(
                         icon: "camera.slash.fill",
                         title: "Camera Unavailable",
                         detail: "This device cannot start the camera right now."
@@ -161,7 +172,7 @@ struct CameraCaptureScreen: View {
                 SpeechManager.shared.speak("Capturing photo.", interrupt: true)
                 viewModel.capturePhoto()
             } label: {
-                Label(viewModel.isProcessing ? "Analyzing..." : "Tap to Capture", systemImage: "camera.circle.fill")
+                Label(viewModel.isProcessing ? "Analyzing..." : "Press to Capture", systemImage: "camera.circle.fill")
                     .font(.title3.weight(.bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
@@ -199,7 +210,7 @@ struct CameraCaptureScreen: View {
         )
     }
 
-    private func resultCard(for result: MockAnalysisResult) -> some View {
+    private func resultCard(for result: VisionAnalysisResult) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Detected Result", systemImage: "speaker.wave.2.fill")
                 .font(.headline.weight(.semibold))
@@ -211,6 +222,10 @@ struct CameraCaptureScreen: View {
             Text(result.spokenMessage)
                 .font(.body)
                 .foregroundStyle(.white.opacity(0.9))
+
+            if let resultAccessory {
+                resultAccessory(result, viewModel.hasPhotoForResult)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
@@ -239,7 +254,7 @@ struct CameraCaptureScreen: View {
         )
     }
 
-    private func statusPlaceholder(icon: String, title: String, detail: String) -> some View {
+    private func statusCard(icon: String, title: String, detail: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 44, weight: .bold))
@@ -264,7 +279,7 @@ struct CameraCaptureScreen: View {
     }
 }
 
-private struct MockCameraPlaceholderView: View {
+private struct CameraPreviewFallbackView: View {
     var body: some View {
         ZStack {
             LinearGradient(
@@ -276,10 +291,10 @@ private struct MockCameraPlaceholderView: View {
                 Image(systemName: "camera.aperture")
                     .font(.system(size: 60, weight: .bold))
                     .foregroundStyle(.white)
-                Text("Mock Camera Preview")
+                Text("Camera Preview")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(.white)
-                Text("UI tests use this preview instead of a real camera feed.")
+                Text("A camera preview will appear here when the camera is available.")
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.white.opacity(0.84))

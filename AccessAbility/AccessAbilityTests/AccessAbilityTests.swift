@@ -11,34 +11,54 @@ import Testing
 struct AccessAbilityTests {
     @MainActor
     @Test
-    func objectMockAlwaysReturnsBottle() async {
-        let service = MockAnalyzingService(delayNanoseconds: 0)
+    func scanAnalysisReturnsScriptedSequence() async {
+        let service = LocalVisionAnalyzingService(delayNanoseconds: 0)
 
-        let result = await service.analyze(mode: .object)
+        let first = await service.analyze(mode: .scan)
+        let second = await service.analyze(mode: .scan)
+        let third = await service.analyze(mode: .scan)
+        let fourth = await service.analyze(mode: .scan)
 
-        #expect(result == MockAnalysisResult(title: "Bottle", spokenMessage: "This is a bottle."))
+        #expect(first.title == "Homework Due April 10th")
+        #expect(first.spokenMessage.contains("white board"))
+        #expect(first.spokenMessage.contains("April 10th"))
+        #expect(second.title == "Bottle")
+        #expect(second.spokenMessage == "The object is bottle.")
+        #expect(third.title == "Bus Stop")
+        #expect(third.spokenMessage.contains("Bus Stop"))
+        #expect(fourth.title == "Homework Due April 10th")
+        #expect(fourth.spokenMessage == first.spokenMessage)
     }
 
     @MainActor
     @Test
-    func signMockAlwaysReturns17thAvenue() async {
-        let service = MockAnalyzingService(delayNanoseconds: 0)
+    func adaComplianceAnalysisReturnsScriptedReports() async {
+        let service = LocalVisionAnalyzingService(delayNanoseconds: 0)
 
-        let result = await service.analyze(mode: .sign)
+        let first = await service.analyze(mode: .adaCompliance)
+        let second = await service.analyze(mode: .adaCompliance)
+        let third = await service.analyze(mode: .adaCompliance)
 
-        #expect(result == MockAnalysisResult(title: "17th Avenue", spokenMessage: "The street sign says 17th Avenue."))
+        #expect(first.title == "Obstacle Detected")
+        #expect(first.spokenMessage.contains("Obstacle detected"))
+        #expect(first.spokenMessage.contains("university"))
+        #expect(second.title == "Inconsistent Desk Arrangement")
+        #expect(second.spokenMessage.contains("classroom"))
+        #expect(second.spokenMessage.contains("university"))
+        #expect(third.title == "Obstacle Detected")
+        #expect(third.spokenMessage == first.spokenMessage)
     }
 
     @MainActor
     @Test
     func spokenMessagesStayShortAndFriendly() async {
-        let service = MockAnalyzingService(delayNanoseconds: 0)
+        let service = LocalVisionAnalyzingService(delayNanoseconds: 0)
 
-        let objectResult = await service.analyze(mode: .object)
-        let signResult = await service.analyze(mode: .sign)
+        let scanResult = await service.analyze(mode: .scan)
+        let reportResult = await service.analyze(mode: .adaCompliance)
 
-        #expect(objectResult.spokenMessage.count < 40)
-        #expect(signResult.spokenMessage.count < 50)
-        #expect(signResult.spokenMessage.contains("17th Avenue"))
+        #expect(scanResult.spokenMessage.count < 100)
+        #expect(reportResult.spokenMessage.count < 100)
+        #expect(scanResult.spokenMessage.contains("homework"))
     }
 }

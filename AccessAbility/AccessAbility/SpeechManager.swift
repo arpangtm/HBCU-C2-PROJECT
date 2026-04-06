@@ -32,21 +32,59 @@ final class SpeechManager: NSObject, AVSpeechSynthesizerDelegate {
         }
     }
 
-    func speak(_ text: String, interrupt: Bool = false, language: String = AVSpeechSynthesisVoice.currentLanguageCode()) {
-        DispatchQueue.main.async {
-            if interrupt, self.synthesizer.isSpeaking {
-                self.synthesizer.stopSpeaking(at: .immediate)
+    func speak(
+        _ text: String,
+        interrupt: Bool = false,
+        language: String = AVSpeechSynthesisVoice.currentLanguageCode(),
+        delay: TimeInterval = 0
+    ) {
+        if delay > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.performSpeak(text, interrupt: interrupt, language: language)
             }
-            let utterance = AVSpeechUtterance(string: text)
-            utterance.voice = AVSpeechSynthesisVoice(language: language)
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-            utterance.pitchMultiplier = 1.0
-            utterance.volume = 1.0
-            self.synthesizer.speak(utterance)
+        } else {
+            performSpeak(text, interrupt: interrupt, language: language)
         }
+    }
+
+    func speakImmediately(_ text: String) {
+        speak(text, interrupt: true, delay: 0)
     }
 
     func stop() {
         synthesizer.stopSpeaking(at: .immediate)
+    }
+
+    private func performSpeak(_ text: String, interrupt: Bool, language: String) {
+        configureAudioSession()
+        if interrupt, synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .word)
+        }
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = preferredVoice(for: language)
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.92
+        utterance.pitchMultiplier = 1.04
+        utterance.volume = 1.0
+        synthesizer.speak(utterance)
+    }
+
+    private func preferredVoice(for language: String) -> AVSpeechSynthesisVoice? {
+        let languagePrefix = language.split(separator: "-").first.map(String.init) ?? "en"
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix(languagePrefix) }
+
+        if let premiumVoice = voices.first(where: { $0.quality == .premium }) {
+            return premiumVoice
+        }
+
+        if let enhancedVoice = voices.first(where: { $0.quality == .enhanced }) {
+            return enhancedVoice
+        }
+
+        if let preferredName = voices.first(where: { ["Ava", "Samantha", "Nicky", "Allison"].contains($0.name) }) {
+            return preferredName
+        }
+
+        return AVSpeechSynthesisVoice(language: language)
     }
 }
