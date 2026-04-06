@@ -20,6 +20,8 @@
 		A1000012 /* IndoorNavigationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000012 /* IndoorNavigationView.swift */; };
 		A1000013 /* Landmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000013 /* Landmark.swift */; };
 		A1000014 /* HapticService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000014 /* HapticService.swift */; };
+		A1000015 /* CampusMapGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000015 /* CampusMapGeometry.swift */; };
+		A1000016 /* AppleStyleRouteMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000016 /* AppleStyleRouteMapView.swift */; };
 		EB81F81F2F679EFF004C459B /* indoor_door_208.jpg in Resources */ = {isa = PBXBuildFile; fileRef = EB81F81E2F679EFE004C459B /* indoor_door_208.jpg */; };
 		EB81F8292F67A07D004C459B /* indoor_stairs.jpg in Resources */ = {isa = PBXBuildFile; fileRef = EB81F8282F67A07D004C459B /* indoor_stairs.jpg */; };
 		EB81F82B2F67A09D004C459B /* indoor_hallway.jpg in Resources */ = {isa = PBXBuildFile; fileRef = EB81F82A2F67A09D004C459B /* indoor_hallway.jpg */; };
@@ -41,6 +43,8 @@
 		A2000012 /* IndoorNavigationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndoorNavigationView.swift; sourceTree = "<group>"; };
 		A2000013 /* Landmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Landmark.swift; sourceTree = "<group>"; };
 		A2000014 /* HapticService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticService.swift; sourceTree = "<group>"; };
+		A2000015 /* CampusMapGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampusMapGeometry.swift; sourceTree = "<group>"; };
+		A2000016 /* AppleStyleRouteMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleStyleRouteMapView.swift; sourceTree = "<group>"; };
 		EB81F81E2F679EFE004C459B /* indoor_door_208.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = indoor_door_208.jpg; sourceTree = "<group>"; };
 		EB81F8282F67A07D004C459B /* indoor_stairs.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = indoor_stairs.jpg; sourceTree = "<group>"; };
 		EB81F82A2F67A09D004C459B /* indoor_hallway.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = indoor_hallway.jpg; sourceTree = "<group>"; };
@@ -124,6 +128,7 @@
 			isa = PBXGroup;
 			children = (
 				A2000012 /* IndoorNavigationView.swift */,
+				A2000016 /* AppleStyleRouteMapView.swift */,
 				A4000007 /* Models */,
 			);
 			path = Navigation;
@@ -134,6 +139,7 @@
 			children = (
 				A2000011 /* IndoorRoute.swift */,
 				A2000013 /* Landmark.swift */,
+				A2000015 /* CampusMapGeometry.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -218,6 +224,8 @@
 				A1000012 /* IndoorNavigationView.swift in Sources */,
 				A1000013 /* Landmark.swift in Sources */,
 				A1000014 /* HapticService.swift in Sources */,
+				A1000015 /* CampusMapGeometry.swift in Sources */,
+				A1000016 /* AppleStyleRouteMapView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

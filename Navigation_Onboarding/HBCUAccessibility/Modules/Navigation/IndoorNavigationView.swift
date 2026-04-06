@@ -35,32 +35,10 @@ struct IndoorNavigationView: View {
     private static let defaultEnd = Landmark.all.first { $0.id == "pj_208" }!
     private static let walkStepInterval: TimeInterval = 10
 
-    private struct NavPoint: Identifiable {
-        enum Kind { case start, end, you }
-        let id = UUID()
-        let coordinate: CLLocationCoordinate2D
-        let kind: Kind
-    }
-
-    @State private var mapRegion = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 36.1676, longitude: -86.78),
-        span: MKCoordinateSpan(latitudeDelta: 0.0008, longitudeDelta: 0.0008)
-    )
-
-    @State private var navPoints: [NavPoint] = [
-        NavPoint(
-            coordinate: CLLocationCoordinate2D(latitude: 36.1676, longitude: -86.7792),
-            kind: .start
-        ),
-        NavPoint(
-            coordinate: CLLocationCoordinate2D(latitude: 36.1679, longitude: -86.7785),
-            kind: .end
-        ),
-        NavPoint(
-            coordinate: CLLocationCoordinate2D(latitude: 36.1676, longitude: -86.7792),
-            kind: .you
-        )
-    ]
+    /// Mock walking path on Apple Maps (outdoor segment). Starts at the true start landmark (e.g. Cafeteria).
+    @State private var routePolyline: [CLLocationCoordinate2D] = []
+    /// 0...1 along `routePolyline` — matches navigation step progress.
+    @State private var outdoorWalkProgress: Double = 0
 
     var body: some View {
         ZStack {
@@ -262,6 +240,7 @@ struct IndoorNavigationView: View {
                 selectedEnd = Self.defaultEnd
                 if let r = IndoorRoute.find(from: selectedStart!, to: Self.defaultEnd) {
                     route = r
+                    syncRoutePolyline(for: r)
                     phase = .confirm
                     speech.speak("Route from Cafeteria to Park Johnson 208. Double-tap anywhere to start navigation.")
                 } else {
@@ -283,14 +262,69 @@ struct IndoorNavigationView: View {
         let end = selectedEnd ?? Self.defaultEnd
         if let r = IndoorRoute.find(from: start, to: end) {
             route = r
+            syncRoutePolyline(for: r)
             phase = .confirm
             speech.speak("Route from \(r.startName) to \(r.endName). Double-tap anywhere to start navigation.")
         } else {
             selectedStart = Self.defaultStart
             selectedEnd = Self.defaultEnd
             route = IndoorRoute.find(from: Self.defaultStart, to: Self.defaultEnd)
+            if let r = route { syncRoutePolyline(for: r) }
             phase = .confirm
             speech.speak("Demo route: Cafeteria to Park Johnson 208. Double-tap anywhere to start.")
+        }
+    }
+
+    private func syncRoutePolyline(for route: IndoorRoute) {
+        routePolyline = CampusMapGeometry.walkingPolyline(from: route.startId, to: route.endId)
+        updateOutdoorWalkProgress()
+    }
+
+    /// Matches `navigatingContent` map vs scene split.
+    private func isIndoorStepInstruction(_ instruction: String) -> Bool {
+        let lower = instruction.lowercased()
+        return lower.contains("enter park johnson") ||
+            lower.contains("inside the lobby") ||
+            lower.contains("second floor") ||
+            lower.contains("third floor") ||
+            lower.contains("hallway") ||
+            lower.contains("room 208") ||
+            lower.contains("room 308")
+    }
+
+    /// Outdoor map dot moves only across steps that use the Map (not indoor scene steps).
+    private func updateOutdoorWalkProgress() {
+        guard let route = route else {
+            outdoorWalkProgress = 0
+            return
+        }
+        let outdoorIndices = route.steps.indices.filter { !isIndoorStepInstruction(route.steps[$0].instruction) }
+        guard let firstOutdoor = outdoorIndices.first, let lastOutdoor = outdoorIndices.last else {
+            outdoorWalkProgress = 0
+            return
+        }
+        if outdoorIndices.count == 1 {
+            let only = firstOutdoor
+            if currentStepIndex < only {
+                outdoorWalkProgress = 0
+            } else if currentStepIndex == only {
+                outdoorWalkProgress = 0
+            } else {
+                outdoorWalkProgress = 1
+            }
+            return
+        }
+        guard lastOutdoor > firstOutdoor else {
+            outdoorWalkProgress = 0
+            return
+        }
+        if outdoorIndices.contains(currentStepIndex) {
+            let segment = Double(currentStepIndex - firstOutdoor) / Double(lastOutdoor - firstOutdoor)
+            outdoorWalkProgress = min(max(segment, 0), 1)
+        } else if currentStepIndex < firstOutdoor {
+            outdoorWalkProgress = 0
+        } else {
+            outdoorWalkProgress = 1
         }
     }
 
@@ -327,42 +361,23 @@ struct IndoorNavigationView: View {
     private var navigatingContent: some View {
         if let route = route {
             let step = route.steps[currentStepIndex]
-            let lower = step.instruction.lowercased()
-            let isIndoor = lower.contains("enter park johnson") ||
-                lower.contains("inside the lobby") ||
-                lower.contains("second floor") ||
-                lower.contains("hallway") ||
-                lower.contains("room 208")
+            let isIndoor = isIndoorStepInstruction(step.instruction)
             let progress = route.steps.count > 0 ? Double(currentStepIndex + 1) / Double(route.steps.count) : 0
             VStack(spacing: 0) {
                 if !isIndoor {
-                    Map(coordinateRegion: $mapRegion, annotationItems: navPoints) { item in
-                        MapAnnotation(coordinate: item.coordinate) {
-                            switch item.kind {
-                            case .start:
-                                Label("Start", systemImage: "circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.white)
-                                    .padding(6)
-                                    .background(Color.green)
-                                    .clipShape(Capsule())
-                            case .end:
-                                Label("Destination", systemImage: "mappin.circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.white)
-                                    .padding(6)
-                                    .background(Color.red)
-                                    .clipShape(Capsule())
-                            case .you:
-                                Circle()
-                                    .fill(Color.blue)
-                                    .frame(width: 22, height: 22)
-                                    .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                                    .shadow(radius: 4)
-                            }
-                        }
-                    }
-                    .frame(height: 280)
+                    AppleStyleRouteMapView(
+                        routeCoordinates: routePolyline,
+                        userFraction: outdoorWalkProgress,
+                        startLabel: route.startName,
+                        endLabel: route.endName
+                    )
+                    .frame(height: 300)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.black.opacity(0.06), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 4)
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
                 } else {
@@ -466,20 +481,27 @@ struct IndoorNavigationView: View {
             .background(Color(.systemGroupedBackground))
             .accessibilityElement(children: .combine)
             .accessibilityLabel(stepsAccessibilityLabel(route: route))
-            .onAppear { startWalkSimulation() }
+            // Do not call startWalkSimulation() here. onAppear can fire again when the map is
+            // swapped for indoor scene images (e.g. after step 4), which would reset the timer,
+            // re-speak the step, and can overwhelm the main thread — felt like a freeze.
         }
     }
 
     private func startWalkSimulation() {
         stopWalkSimulation()
         speakCurrentStep()
+        // scheduledTimer already adds the timer to the main run loop; adding it again for
+        // .common could register it twice and duplicate firings.
         walkTimer = Timer.scheduledTimer(withTimeInterval: Self.walkStepInterval, repeats: true) { [self] _ in
+            guard phase == .navigating else {
+                stopWalkSimulation()
+                return
+            }
             advanceToNextStep()
             if phase == .arrived {
                 stopWalkSimulation()
             }
         }
-        RunLoop.main.add(walkTimer!, forMode: .common)
     }
 
     private func stopWalkSimulation() {
@@ -549,6 +571,7 @@ struct IndoorNavigationView: View {
             if route != nil {
                 phase = .navigating
                 currentStepIndex = 0
+                updateOutdoorWalkProgress()
                 HapticService.navigationStarted()
                 startWalkSimulation()
             }
@@ -573,20 +596,11 @@ struct IndoorNavigationView: View {
     }
 
     private func advanceToNextStep() {
+        guard phase == .navigating else { return }
         guard let route = route else { return }
         if currentStepIndex + 1 < route.steps.count {
             currentStepIndex += 1
-            // Move the blue dot along a straight line between start and end for the demo.
-            if let startCoord = navPoints.first(where: { $0.kind == .start })?.coordinate,
-               let endCoord = navPoints.first(where: { $0.kind == .end })?.coordinate,
-               let youIndex = navPoints.firstIndex(where: { $0.kind == .you }) {
-                let t = Double(currentStepIndex) / Double(max(route.steps.count - 1, 1))
-                let lat = startCoord.latitude + (endCoord.latitude - startCoord.latitude) * t
-                let lon = startCoord.longitude + (endCoord.longitude - startCoord.longitude) * t
-                let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                navPoints[youIndex] = NavPoint(coordinate: coord, kind: .you)
-                mapRegion.center = coord
-            }
+            updateOutdoorWalkProgress()
             speakCurrentStep()
         } else {
             stopWalkSimulation()
