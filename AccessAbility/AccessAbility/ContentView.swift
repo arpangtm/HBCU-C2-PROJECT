@@ -143,12 +143,12 @@ struct ContentView: View {
             let width = proxy.size.width
             let height = proxy.size.height
             let edgeInset: CGFloat = 12
-            let sideCardWidth = min(136, max(118, (width - 128) / 2))
+            let sideCardWidth = min(128, max(112, (width - 150) / 2))
             let verticalCardWidth = min(204, max(184, width - 120))
-            let horizontalOffset = max(0, min((width - sideCardWidth) / 2 - edgeInset, width * 0.31))
+            let horizontalOffset = max(0, min((width - sideCardWidth) / 2 - edgeInset, width * 0.32))
             let verticalOffset = min(height * 0.32, 146)
-            let centerSize = min(112, max(96, width * 0.28))
-            let haloSize = centerSize + 22
+            let centerSize = min(92, max(84, width * 0.23))
+            let haloSize = centerSize + 14
 
             ZStack {
                 compassRings(width: width, height: height)
@@ -268,9 +268,9 @@ struct ContentView: View {
 
             VStack(spacing: 8) {
                 Image(systemName: isHoldingControl ? "hand.draw.fill" : "hand.point.up.left.fill")
-                    .font(.system(size: 28, weight: .black))
+                    .font(.system(size: 24, weight: .black))
                 Text(isHoldingControl ? "Swipe" : "Hold")
-                    .font(.subheadline.weight(.black))
+                    .font(.caption.weight(.black))
             }
             .foregroundStyle(Color.black.opacity(0.82))
         }

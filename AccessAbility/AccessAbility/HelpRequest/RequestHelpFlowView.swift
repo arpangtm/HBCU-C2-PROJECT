@@ -134,12 +134,12 @@ private struct SwipeSelectionPad<Value: Hashable>: View {
             let width = proxy.size.width
             let height = proxy.size.height
             let edgeInset: CGFloat = 12
-            let sideCardWidth = min(132, max(116, (width - 128) / 2))
+            let sideCardWidth = min(126, max(112, (width - 150) / 2))
             let verticalCardWidth = min(204, max(178, width - 118))
-            let horizontalOffset = max(0, min((width - sideCardWidth) / 2 - edgeInset, width * 0.30))
+            let horizontalOffset = max(0, min((width - sideCardWidth) / 2 - edgeInset, width * 0.31))
             let verticalOffset = min(height * 0.32, 138)
-            let centerSize = min(108, max(96, width * 0.27))
-            let haloSize = centerSize + 20
+            let centerSize = min(90, max(84, width * 0.23))
+            let haloSize = centerSize + 14
 
             ZStack {
                 compassRings(width: width, height: height)
@@ -239,9 +239,9 @@ private struct SwipeSelectionPad<Value: Hashable>: View {
 
             VStack(spacing: 8) {
                 Image(systemName: isHoldingControl ? "hand.draw.fill" : "hand.point.up.left.fill")
-                    .font(.system(size: 26, weight: .black))
+                    .font(.system(size: 24, weight: .black))
                 Text(isHoldingControl ? "Swipe" : "Hold")
-                    .font(.subheadline.weight(.black))
+                    .font(.caption.weight(.black))
             }
             .foregroundStyle(Color.black.opacity(0.82))
         }

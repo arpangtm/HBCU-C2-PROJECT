@@ -11,10 +11,8 @@ struct IndoorNavigationView: View {
     @State private var route: IndoorRoute?
     @State private var currentStepIndex = 0
     @State private var showListeningCue = false
-    @State private var youCoordinate = CampusRouteGeometry.coordinateAlongPolyline(
-        CampusRouteGeometry.coordinates(for: IndoorRoute.defaultRoute),
-        progress: 0
-    )
+    @State private var routePolyline: [CLLocationCoordinate2D] = []
+    @State private var outdoorWalkProgress: Double = 0
     @State private var walkTimer: Timer?
 
     private let walkStepInterval: TimeInterval = 10
@@ -294,11 +292,14 @@ struct IndoorNavigationView: View {
     private func stepVisual(for step: IndoorRoute.RouteStep, route: IndoorRoute) -> some View {
         Group {
             if isOutdoorStep(step) {
-                OutdoorRouteMapView(
-                    coordinates: CampusRouteGeometry.coordinates(for: route),
-                    userCoordinate: youCoordinate
+                AppleStyleRouteMapView(
+                    routeCoordinates: routePolyline,
+                    userFraction: outdoorWalkProgress,
+                    startLabel: route.startName,
+                    endLabel: route.endName
                 )
-                .frame(height: 250)
+                .frame(height: 300)
+                .shadow(color: .black.opacity(0.18), radius: 14, x: 0, y: 8)
             } else if let sceneImageName = step.sceneImageName {
                 Image(sceneImageName)
                     .resizable()
@@ -435,12 +436,16 @@ struct IndoorNavigationView: View {
 
         if let resolved = IndoorRoute.find(from: start, to: end) {
             route = resolved
+            syncRoutePolyline(for: resolved)
             phase = .confirm
             SpeechManager.shared.speak("Route from \(resolved.startName) to \(resolved.endName). Press start navigation when ready.", interrupt: true)
         } else {
             selectedStart = Self.defaultStart
             selectedEnd = Self.defaultEnd
             route = IndoorRoute.find(from: Self.defaultStart, to: Self.defaultEnd)
+            if let route {
+                syncRoutePolyline(for: route)
+            }
             phase = .confirm
             SpeechManager.shared.speak("I could not find that exact route. Using Cafeteria front door to Park Johnson Room 208. Press start navigation when ready.", interrupt: true)
         }
@@ -450,10 +455,11 @@ struct IndoorNavigationView: View {
         guard let route else { return }
         stopWalkTimer()
         currentStepIndex = 0
-        youCoordinate = CampusRouteGeometry.coordinateAlongPolyline(
-            CampusRouteGeometry.coordinates(for: route),
-            progress: 0
-        )
+        if routePolyline.isEmpty {
+            syncRoutePolyline(for: route)
+        } else {
+            updateOutdoorWalkProgress()
+        }
         phase = .navigating
         HapticService.navigationStarted()
         speakCurrentStep()
@@ -465,7 +471,7 @@ struct IndoorNavigationView: View {
 
         if currentStepIndex + 1 < route.steps.count {
             currentStepIndex += 1
-            updateSimulatedLocation(route: route)
+            updateOutdoorWalkProgress()
             speakCurrentStep()
         } else {
             stopWalkTimer()
@@ -475,12 +481,42 @@ struct IndoorNavigationView: View {
         }
     }
 
-    private func updateSimulatedLocation(route: IndoorRoute) {
-        let coordinates = CampusRouteGeometry.coordinates(for: route)
-        youCoordinate = CampusRouteGeometry.coordinateAlongPolyline(
-            coordinates,
-            progress: outdoorProgress(route: route, currentIndex: currentStepIndex)
-        )
+    private func syncRoutePolyline(for route: IndoorRoute) {
+        routePolyline = CampusRouteGeometry.walkingPolyline(from: route.startId, to: route.endId)
+        updateOutdoorWalkProgress()
+    }
+
+    private func updateOutdoorWalkProgress() {
+        guard let route else {
+            outdoorWalkProgress = 0
+            return
+        }
+
+        let outdoorIndices = route.steps.indices.filter { isOutdoorStep(route.steps[$0]) }
+        guard let firstOutdoor = outdoorIndices.first, let lastOutdoor = outdoorIndices.last else {
+            outdoorWalkProgress = 0
+            return
+        }
+
+        if outdoorIndices.count == 1 {
+            let onlyOutdoor = firstOutdoor
+            outdoorWalkProgress = currentStepIndex > onlyOutdoor ? 1 : 0
+            return
+        }
+
+        guard lastOutdoor > firstOutdoor else {
+            outdoorWalkProgress = 0
+            return
+        }
+
+        if outdoorIndices.contains(currentStepIndex) {
+            let segment = Double(currentStepIndex - firstOutdoor) / Double(lastOutdoor - firstOutdoor)
+            outdoorWalkProgress = min(max(segment, 0), 1)
+        } else if currentStepIndex < firstOutdoor {
+            outdoorWalkProgress = 0
+        } else {
+            outdoorWalkProgress = 1
+        }
     }
 
     private func speakCurrentStep() {
@@ -522,188 +558,8 @@ struct IndoorNavigationView: View {
         walkTimer = nil
     }
 
-    private func outdoorProgress(route: IndoorRoute, currentIndex: Int) -> Double {
-        let outdoorIndices = route.steps.indices.filter { isOutdoorStep(route.steps[$0]) }
-        guard let firstOutdoor = outdoorIndices.first, let lastOutdoor = outdoorIndices.last else {
-            return 1
-        }
-
-        if currentIndex <= firstOutdoor { return 0 }
-        if currentIndex >= lastOutdoor { return 1 }
-
-        guard let outdoorPosition = outdoorIndices.firstIndex(of: currentIndex) else {
-            return 1
-        }
-
-        return Double(outdoorPosition) / Double(max(outdoorIndices.count - 1, 1))
-    }
-
-    private func isIndoorStep(_ step: IndoorRoute.RouteStep) -> Bool {
-        let instruction = step.instruction.lowercased()
-        return instruction.contains("inside") ||
-            instruction.contains("lobby") ||
-            instruction.contains("floor") ||
-            instruction.contains("hallway") ||
-            instruction.contains("room")
-    }
-
     private func isOutdoorStep(_ step: IndoorRoute.RouteStep) -> Bool {
-        step.sceneImageName == nil && !isIndoorStep(step)
-    }
-}
-
-private struct OutdoorRouteMapView: UIViewRepresentable {
-    let coordinates: [CLLocationCoordinate2D]
-    let userCoordinate: CLLocationCoordinate2D
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-
-    func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView(frame: .zero)
-        mapView.delegate = context.coordinator
-        mapView.showsCompass = true
-        mapView.showsScale = true
-        mapView.pointOfInterestFilter = .includingAll
-        mapView.isPitchEnabled = false
-
-        if #available(iOS 16.0, *) {
-            mapView.preferredConfiguration = MKStandardMapConfiguration(emphasisStyle: .muted)
-        } else {
-            mapView.mapType = .mutedStandard
-        }
-
-        context.coordinator.update(
-            mapView: mapView,
-            coordinates: coordinates,
-            userCoordinate: userCoordinate,
-            animated: false
-        )
-        return mapView
-    }
-
-    func updateUIView(_ mapView: MKMapView, context: Context) {
-        context.coordinator.update(
-            mapView: mapView,
-            coordinates: coordinates,
-            userCoordinate: userCoordinate,
-            animated: true
-        )
-    }
-
-    final class Coordinator: NSObject, MKMapViewDelegate {
-        private let startAnnotation = MKPointAnnotation()
-        private let destinationAnnotation = MKPointAnnotation()
-        private let userAnnotation = MKPointAnnotation()
-        private var routePolyline: MKPolyline?
-        private var routeSignature = ""
-
-        func update(
-            mapView: MKMapView,
-            coordinates: [CLLocationCoordinate2D],
-            userCoordinate: CLLocationCoordinate2D,
-            animated: Bool
-        ) {
-            guard coordinates.count >= 2 else { return }
-
-            let signature = coordinates
-                .map { "\($0.latitude),\($0.longitude)" }
-                .joined(separator: "|")
-
-            if signature != routeSignature {
-                rebuildRoute(on: mapView, coordinates: coordinates)
-                routeSignature = signature
-                fitRoute(on: mapView, animated: animated)
-            }
-
-            userAnnotation.coordinate = userCoordinate
-            mapView.setCenter(userCoordinate, animated: animated)
-        }
-
-        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            guard let polyline = overlay as? MKPolyline else {
-                return MKOverlayRenderer(overlay: overlay)
-            }
-
-            let renderer = MKPolylineRenderer(polyline: polyline)
-            renderer.strokeColor = .systemBlue
-            renderer.lineWidth = 6
-            renderer.lineCap = .round
-            renderer.lineJoin = .round
-            return renderer
-        }
-
-        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
-            guard let pointAnnotation = annotation as? MKPointAnnotation else { return nil }
-
-            if pointAnnotation === userAnnotation {
-                let identifier = "user-dot"
-                let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) ??
-                    MKAnnotationView(annotation: annotation, reuseIdentifier: identifier)
-                view.annotation = annotation
-                view.frame = CGRect(x: 0, y: 0, width: 20, height: 20)
-                view.backgroundColor = .systemBlue
-                view.layer.cornerRadius = 10
-                view.layer.borderWidth = 3
-                view.layer.borderColor = UIColor.white.cgColor
-                view.layer.shadowColor = UIColor.black.cgColor
-                view.layer.shadowOpacity = 0.25
-                view.layer.shadowRadius = 4
-                view.layer.shadowOffset = CGSize(width: 0, height: 2)
-                view.canShowCallout = false
-                return view
-            }
-
-            let identifier = pointAnnotation === startAnnotation ? "start-marker" : "destination-marker"
-            let view = (mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView) ??
-                MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
-            view.annotation = annotation
-            view.canShowCallout = true
-
-            if pointAnnotation === startAnnotation {
-                view.markerTintColor = .systemGreen
-                view.glyphImage = UIImage(systemName: "figure.walk")
-            } else {
-                view.markerTintColor = .systemRed
-                view.glyphImage = UIImage(systemName: "mappin")
-            }
-
-            return view
-        }
-
-        private func rebuildRoute(on mapView: MKMapView, coordinates: [CLLocationCoordinate2D]) {
-            if let routePolyline {
-                mapView.removeOverlay(routePolyline)
-            }
-
-            mapView.removeAnnotations([startAnnotation, destinationAnnotation, userAnnotation])
-
-            let polyline = MKPolyline(coordinates: coordinates, count: coordinates.count)
-            routePolyline = polyline
-
-            startAnnotation.title = "Start"
-            startAnnotation.coordinate = coordinates[0]
-
-            destinationAnnotation.title = "Destination"
-            destinationAnnotation.coordinate = coordinates[coordinates.count - 1]
-
-            userAnnotation.title = "You"
-            userAnnotation.coordinate = coordinates[0]
-
-            mapView.addOverlay(polyline)
-            mapView.addAnnotations([startAnnotation, destinationAnnotation, userAnnotation])
-        }
-
-        private func fitRoute(on mapView: MKMapView, animated: Bool) {
-            guard let routePolyline else { return }
-
-            mapView.setVisibleMapRect(
-                routePolyline.boundingMapRect,
-                edgePadding: UIEdgeInsets(top: 32, left: 32, bottom: 32, right: 32),
-                animated: animated
-            )
-        }
+        !step.usesIndoorScene
     }
 }
 

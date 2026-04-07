@@ -1,48 +1,61 @@
 import CoreLocation
+import MapKit
 
 enum CampusRouteGeometry {
-    private static let cafeteriaFront = CLLocationCoordinate2D(latitude: 36.16760, longitude: -86.77920)
-    private static let cafeteriaPathCorner = CLLocationCoordinate2D(latitude: 36.16764, longitude: -86.77898)
-    private static let parkJohnsonWalkway = CLLocationCoordinate2D(latitude: 36.16776, longitude: -86.77878)
-    private static let parkJohnsonEntrance = CLLocationCoordinate2D(latitude: 36.16788, longitude: -86.77855)
+    private static let cafeteriaFront = CLLocationCoordinate2D(latitude: 36.16738, longitude: -86.80415)
+    private static let libraryEntrance = CLLocationCoordinate2D(latitude: 36.16828, longitude: -86.80395)
+    private static let chapelMain = CLLocationCoordinate2D(latitude: 36.16705, longitude: -86.80275)
+    private static let parkJohnsonPlaza = CLLocationCoordinate2D(latitude: 36.16792, longitude: -86.80278)
+    private static let parkJohnsonEntrance = CLLocationCoordinate2D(latitude: 36.16802, longitude: -86.80265)
 
-    private static let libraryEntrance = CLLocationCoordinate2D(latitude: 36.16736, longitude: -86.77906)
-    private static let libraryQuadCorner = CLLocationCoordinate2D(latitude: 36.16752, longitude: -86.77886)
-
-    private static let chapelMain = CLLocationCoordinate2D(latitude: 36.16708, longitude: -86.78002)
-    private static let chapelWalkway = CLLocationCoordinate2D(latitude: 36.16722, longitude: -86.77978)
-    private static let cafeteriaApproach = CLLocationCoordinate2D(latitude: 36.16745, longitude: -86.77946)
+    static func coordinate(for landmarkId: String) -> CLLocationCoordinate2D {
+        switch landmarkId {
+        case "cafeteria_front":
+            cafeteriaFront
+        case "library_entrance":
+            libraryEntrance
+        case "chapel_main":
+            chapelMain
+        case "pj_308", "pj_208", "pj_lobby":
+            parkJohnsonEntrance
+        default:
+            cafeteriaFront
+        }
+    }
 
     static func coordinates(for route: IndoorRoute) -> [CLLocationCoordinate2D] {
-        switch (route.startId, route.endId) {
+        walkingPolyline(from: route.startId, to: route.endId)
+    }
+
+    static func walkingPolyline(from startId: String, to endId: String) -> [CLLocationCoordinate2D] {
+        switch (startId, endId) {
         case ("cafeteria_front", "pj_208"), ("cafeteria_front", "pj_308"):
             return [
                 cafeteriaFront,
-                cafeteriaPathCorner,
-                parkJohnsonWalkway,
+                CLLocationCoordinate2D(latitude: 36.16752, longitude: -86.80388),
+                CLLocationCoordinate2D(latitude: 36.16768, longitude: -86.80355),
+                CLLocationCoordinate2D(latitude: 36.16782, longitude: -86.80322),
+                parkJohnsonPlaza,
                 parkJohnsonEntrance
             ]
         case ("library_entrance", "pj_208"):
             return [
                 libraryEntrance,
-                libraryQuadCorner,
-                parkJohnsonWalkway,
+                CLLocationCoordinate2D(latitude: 36.16818, longitude: -86.80355),
+                CLLocationCoordinate2D(latitude: 36.16805, longitude: -86.80315),
+                CLLocationCoordinate2D(latitude: 36.16795, longitude: -86.80295),
+                parkJohnsonPlaza,
                 parkJohnsonEntrance
             ]
         case ("chapel_main", "cafeteria_front"):
             return [
                 chapelMain,
-                chapelWalkway,
-                cafeteriaApproach,
+                CLLocationCoordinate2D(latitude: 36.16718, longitude: -86.80335),
+                CLLocationCoordinate2D(latitude: 36.16728, longitude: -86.80372),
                 cafeteriaFront
             ]
         default:
-            return [
-                cafeteriaFront,
-                cafeteriaPathCorner,
-                parkJohnsonWalkway,
-                parkJohnsonEntrance
-            ]
+            return walkingPolyline(from: "cafeteria_front", to: "pj_208")
         }
     }
 
@@ -87,6 +100,42 @@ enum CampusRouteGeometry {
         return CLLocationCoordinate2D(
             latitude: start.latitude + (end.latitude - start.latitude) * clampedRatio,
             longitude: start.longitude + (end.longitude - start.longitude) * clampedRatio
+        )
+    }
+
+    static func boundingRegion(
+        for coordinates: [CLLocationCoordinate2D],
+        paddingFactor: Double = 1.35
+    ) -> MKCoordinateRegion {
+        guard let first = coordinates.first else {
+            return MKCoordinateRegion(
+                center: cafeteriaFront,
+                span: MKCoordinateSpan(latitudeDelta: 0.002, longitudeDelta: 0.002)
+            )
+        }
+
+        var minLatitude = first.latitude
+        var maxLatitude = first.latitude
+        var minLongitude = first.longitude
+        var maxLongitude = first.longitude
+
+        for coordinate in coordinates {
+            minLatitude = min(minLatitude, coordinate.latitude)
+            maxLatitude = max(maxLatitude, coordinate.latitude)
+            minLongitude = min(minLongitude, coordinate.longitude)
+            maxLongitude = max(maxLongitude, coordinate.longitude)
+        }
+
+        let center = CLLocationCoordinate2D(
+            latitude: (minLatitude + maxLatitude) / 2,
+            longitude: (minLongitude + maxLongitude) / 2
+        )
+        let latitudeDelta = min(max(maxLatitude - minLatitude, 0.00035) * paddingFactor, 0.012)
+        let longitudeDelta = min(max(maxLongitude - minLongitude, 0.00035) * paddingFactor, 0.012)
+
+        return MKCoordinateRegion(
+            center: center,
+            span: MKCoordinateSpan(latitudeDelta: latitudeDelta, longitudeDelta: longitudeDelta)
         )
     }
 }

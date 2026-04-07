@@ -61,4 +61,20 @@ struct AccessAbilityTests {
         #expect(reportResult.spokenMessage.count < 100)
         #expect(scanResult.spokenMessage.contains("homework"))
     }
+
+    @Test
+    func defaultNavigationRouteUsesFourOutdoorAndThreeIndoorSteps() {
+        let route = IndoorRoute.defaultRoute
+        let outdoorSteps = route.steps.filter { !$0.usesIndoorScene }
+        let indoorSteps = route.steps.filter(\.usesIndoorScene)
+
+        #expect(route.steps.count == 7)
+        #expect(outdoorSteps.count == 4)
+        #expect(indoorSteps.count == 3)
+        #expect(route.steps[3].sceneImageName == "indoor_entrance")
+        #expect(route.steps[3].usesIndoorScene == false)
+        #expect(route.steps[4].sceneImageName == "indoor_lobby")
+        #expect(route.steps[5].sceneImageName == "indoor_hallway")
+        #expect(route.steps[6].sceneImageName == "indoor_door_208")
+    }
 }

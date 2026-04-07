@@ -31,6 +31,21 @@ struct IndoorRoute {
             self.isStairsEnd = isStairsEnd
             self.sceneImageName = sceneImageName
         }
+
+        var usesIndoorScene: Bool {
+            Self.isIndoorInstruction(instruction)
+        }
+
+        static func isIndoorInstruction(_ instruction: String) -> Bool {
+            let lower = instruction.lowercased()
+            return lower.contains("enter park johnson") ||
+                lower.contains("inside the lobby") ||
+                lower.contains("second floor") ||
+                lower.contains("third floor") ||
+                lower.contains("hallway") ||
+                lower.contains("room 208") ||
+                lower.contains("room 308")
+        }
     }
 
     private static let routes: [String: IndoorRoute] = {
