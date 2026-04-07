@@ -628,13 +628,26 @@ private struct RouteMapView: View {
         let middle = CGPoint(x: width * 0.72, y: height / 2)
         let end = CGPoint(x: width / 2, y: 44)
 
-        return (0..<stepCount).map { index in
-            let t = stepCount > 1 ? CGFloat(index) / CGFloat(stepCount - 1) : 1
-            let inverse = 1 - t
-            return CGPoint(
-                x: inverse * inverse * start.x + 2 * inverse * t * middle.x + t * t * end.x,
-                y: inverse * inverse * start.y + 2 * inverse * t * middle.y + t * t * end.y
-            )
+        return (0..<stepCount).map { index -> CGPoint in
+            let t: CGFloat
+            if stepCount > 1 {
+                t = CGFloat(index) / CGFloat(stepCount - 1)
+            } else {
+                t = 1
+            }
+
+            let inverse: CGFloat = 1 - t
+            let two: CGFloat = 2
+
+            let x = inverse * inverse * start.x
+                  + two * inverse * t * middle.x
+                  + t * t * end.x
+
+            let y = inverse * inverse * start.y
+                  + two * inverse * t * middle.y
+                  + t * t * end.y
+
+            return CGPoint(x: x, y: y)
         }
     }
 

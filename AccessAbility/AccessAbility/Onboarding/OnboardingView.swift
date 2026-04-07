@@ -1,6 +1,106 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Welcome Hero Screen
+
+private struct WelcomeHeroView: View {
+    @State private var logoScale: CGFloat = 0.7
+    @State private var logoOpacity: Double = 0
+    @State private var titleOffset: CGFloat = 30
+    @State private var titleOpacity: Double = 0
+    @State private var taglineOpacity: Double = 0
+    @State private var pulseScale: CGFloat = 1.0
+
+    var body: some View {
+        ZStack {
+            AccessAbilityTheme.background.ignoresSafeArea()
+
+            // Subtle gold radial glow behind logo
+            RadialGradient(
+                colors: [AccessAbilityTheme.accentGold.opacity(0.12), Color.clear],
+                center: .center,
+                startRadius: 60,
+                endRadius: 220
+            )
+            .frame(width: 440, height: 440)
+            .offset(y: -60)
+
+            VStack(spacing: 0) {
+                Spacer()
+
+                // Logo mark with pulse ring
+                ZStack {
+                    Circle()
+                        .stroke(AccessAbilityTheme.accentGold.opacity(0.25), lineWidth: 2)
+                        .frame(width: 148, height: 148)
+                        .scaleEffect(pulseScale)
+                        .opacity(2 - pulseScale)
+
+                    Circle()
+                        .fill(AccessAbilityTheme.accentGold.opacity(0.08))
+                        .frame(width: 128, height: 128)
+
+                    Image(systemName: "figure.walk.circle.fill")
+                        .font(.system(size: 72, weight: .medium))
+                        .foregroundStyle(AccessAbilityTheme.accentGold)
+                }
+                .scaleEffect(logoScale)
+                .opacity(logoOpacity)
+                .padding(.bottom, 36)
+
+                // App name — "Access" white, "Ability" gold
+                HStack(spacing: 0) {
+                    Text("Access")
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .foregroundStyle(AccessAbilityTheme.primaryText)
+                    Text("Ability")
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .foregroundStyle(AccessAbilityTheme.accentGold)
+                }
+                .offset(y: titleOffset)
+                .opacity(titleOpacity)
+                .padding(.bottom, 12)
+
+                // Tagline
+                Text("Campus Independence · Community Supported")
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundStyle(AccessAbilityTheme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .opacity(taglineOpacity)
+                    .padding(.horizontal, 32)
+
+                Spacer()
+                Spacer()
+
+                // Tap hint
+                Text("Tap anywhere to get started")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(AccessAbilityTheme.mutedText)
+                    .padding(.bottom, 48)
+                    .opacity(taglineOpacity)
+            }
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.65).delay(0.1)) {
+                logoScale = 1.0
+                logoOpacity = 1.0
+            }
+            withAnimation(.easeOut(duration: 0.55).delay(0.45)) {
+                titleOffset = 0
+                titleOpacity = 1.0
+            }
+            withAnimation(.easeOut(duration: 0.5).delay(0.7)) {
+                taglineOpacity = 1.0
+            }
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: false).delay(1.0)) {
+                pulseScale = 1.6
+            }
+        }
+    }
+}
+
+// MARK: - Onboarding Flow
+
 struct OnboardingView: View {
     let onComplete: (String, String) -> Void
 
@@ -27,51 +127,57 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            AccessAbilityTheme.background.ignoresSafeArea()
+            if currentStep == .welcome {
+                WelcomeHeroView()
+                    .contentShape(Rectangle())
+                    .onTapGesture { advance() }
+                    .accessibilityIdentifier("onboarding.screen")
+                    .transition(.opacity)
+            } else {
+                AccessAbilityTheme.background.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                progressBar
+                VStack(spacing: 0) {
+                    progressBar
 
-                ScrollView {
-                    VStack(spacing: 24) {
-                        stepContent
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            stepContent
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(22)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(22)
-                }
 
-                Button {
-                    advance()
-                } label: {
-                    Text(currentStep == .complete ? "Open AccessAbility" : "Continue")
-                        .font(.headline.weight(.bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 18)
-                        .background(canAdvance ? Color.white : Color.white.opacity(0.22))
-                        .foregroundStyle(canAdvance ? Color.black : Color.white.opacity(0.72))
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    Button {
+                        advance()
+                    } label: {
+                        Text(currentStep == .complete ? "Open AccessAbility" : "Continue")
+                            .font(.headline.weight(.bold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(canAdvance ? Color.white : Color.white.opacity(0.22))
+                            .foregroundStyle(canAdvance ? Color.black : Color.white.opacity(0.72))
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    }
+                    .disabled(!canAdvance)
+                    .padding(.horizontal, 22)
+                    .padding(.bottom, 22)
+                    .accessibilityIdentifier("onboarding.next")
                 }
-                .disabled(!canAdvance)
-                .padding(.horizontal, 22)
-                .padding(.bottom, 22)
-                .accessibilityIdentifier("onboarding.next")
+                .accessibilityIdentifier("onboarding.screen")
+                .contentShape(Rectangle())
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        if currentStep == .howItWorks || currentStep == .complete {
+                            advance()
+                        }
+                    }
+                )
+                .transition(.opacity)
             }
         }
-        .accessibilityIdentifier("onboarding.screen")
-        .contentShape(Rectangle())
-        .simultaneousGesture(
-            TapGesture().onEnded {
-                if currentStep == .welcome || currentStep == .howItWorks || currentStep == .complete {
-                    advance()
-                }
-            }
-        )
-        .onAppear {
-            announceStep(currentStep)
-        }
-        .onChange(of: currentStep) { _, step in
-            announceStep(step)
-        }
+        .animation(.easeInOut(duration: 0.4), value: currentStep == .welcome)
+        .onAppear { announceStep(currentStep) }
+        .onChange(of: currentStep) { _, step in announceStep(step) }
         .onDisappear {
             SpeechManager.shared.stop()
             voiceInput.stopListening()
@@ -96,11 +202,7 @@ struct OnboardingView: View {
     private var stepContent: some View {
         switch currentStep {
         case .welcome:
-            introCard(
-                icon: "hand.wave.fill",
-                title: "Welcome to AccessAbility",
-                body: "We’ll set up your profile, then take you to the home screen where every feature is ready from one simple gesture layout."
-            )
+            EmptyView()
         case .name:
             inputCard(
                 title: "What should we call you?",
@@ -122,7 +224,7 @@ struct OnboardingView: View {
         case .complete:
             introCard(
                 icon: "checkmark.circle.fill",
-                title: "You’re all set\(userNameInput.isEmpty ? "" : ", \(userNameInput)")",
+                title: "You're all set\(userNameInput.isEmpty ? "" : ", \(userNameInput)")",
                 body: "Open AccessAbility to choose a feature from the home screen. You can return there after each task."
             )
         }
@@ -179,7 +281,7 @@ struct OnboardingView: View {
                 .accessibilityIdentifier(field == .name ? "onboarding.name" : "onboarding.studentId")
 
             pressAndHoldVoiceControl(for: field)
-            .accessibilityIdentifier(field == .name ? "onboarding.speakName" : "onboarding.speakStudentId")
+                .accessibilityIdentifier(field == .name ? "onboarding.speakName" : "onboarding.speakStudentId")
         }
         .padding(22)
         .background(AccessAbilityTheme.cardBackground())
@@ -203,27 +305,26 @@ struct OnboardingView: View {
     private func pressAndHoldVoiceControl(for field: Field) -> some View {
         let isActive = showListeningCue && listeningField == field
 
-        return Label(isActive ? "Listening... release to enter text" : "Press and hold to speak", systemImage: isActive ? "waveform.circle.fill" : "mic.fill")
-            .font(.headline.weight(.semibold))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(isActive ? Color.white : AccessAbilityTheme.accentGold)
-            .foregroundStyle(Color.black)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .scaleEffect(isActive ? 1.02 : 1)
-            .animation(.easeInOut(duration: 0.15), value: isActive)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        beginVoiceInput(for: field)
-                    }
-                    .onEnded { _ in
-                        finishVoiceInput(for: field)
-                    }
-            )
-            .accessibilityLabel(isActive ? "Listening, release to enter text" : "Press and hold to speak")
-            .accessibilityHint("Hold your finger down while speaking, then release to fill the field.")
+        return Label(
+            isActive ? "Listening... release to enter text" : "Press and hold to speak",
+            systemImage: isActive ? "waveform.circle.fill" : "mic.fill"
+        )
+        .font(.headline.weight(.semibold))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(isActive ? Color.white : AccessAbilityTheme.accentGold)
+        .foregroundStyle(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .scaleEffect(isActive ? 1.02 : 1)
+        .animation(.easeInOut(duration: 0.15), value: isActive)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in beginVoiceInput(for: field) }
+                .onEnded { _ in finishVoiceInput(for: field) }
+        )
+        .accessibilityLabel(isActive ? "Listening, release to enter text" : "Press and hold to speak")
+        .accessibilityHint("Hold your finger down while speaking, then release to fill the field.")
     }
 
     private func featureRow(_ text: String, icon: String) -> some View {
@@ -264,12 +365,9 @@ struct OnboardingView: View {
 
     private var canAdvance: Bool {
         switch currentStep {
-        case .welcome, .howItWorks, .complete:
-            true
-        case .name:
-            !userNameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case .studentId:
-            !studentIdInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .welcome, .howItWorks, .complete: true
+        case .name: !userNameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .studentId: !studentIdInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
 
@@ -278,22 +376,16 @@ struct OnboardingView: View {
             SpeechManager.shared.speak("Please enter this field before continuing.", interrupt: true)
             return
         }
-
         SpeechManager.shared.stop()
         voiceInput.stopListening()
         showListeningCue = false
 
         switch currentStep {
-        case .welcome:
-            currentStep = .name
-        case .name:
-            currentStep = .studentId
-        case .studentId:
-            currentStep = .howItWorks
-        case .howItWorks:
-            currentStep = .complete
-        case .complete:
-            onComplete(userNameInput, studentIdInput)
+        case .welcome:    currentStep = .name
+        case .name:       currentStep = .studentId
+        case .studentId:  currentStep = .howItWorks
+        case .howItWorks: currentStep = .complete
+        case .complete:   onComplete(userNameInput, studentIdInput)
         }
     }
 
@@ -312,7 +404,6 @@ struct OnboardingView: View {
                 SpeechManager.shared.speak("Microphone and speech recognition permission are needed to use voice input.", interrupt: true)
                 return
             }
-
             voiceInput.startListening { text in
                 handleVoiceInput(text, for: field)
             }
@@ -327,7 +418,6 @@ struct OnboardingView: View {
             voiceInput.stopListening()
             return
         }
-
         _ = voiceInput.finishListening()
     }
 
@@ -354,7 +444,6 @@ struct OnboardingView: View {
     private func cleanVoiceInput(_ text: String, for field: Field) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard field == .studentId else { return trimmed }
-
         let digits = trimmed.filter(\.isNumber)
         return digits.isEmpty ? trimmed : String(digits)
     }
@@ -362,7 +451,7 @@ struct OnboardingView: View {
     private func announceStep(_ step: Step) {
         switch step {
         case .welcome:
-            SpeechManager.shared.speak("Welcome to AccessAbility. Press anywhere on the screen or press continue to begin.", interrupt: true, delay: 0.3)
+            SpeechManager.shared.speak("Welcome to AccessAbility. Tap anywhere to begin.", interrupt: true, delay: 0.3)
         case .name:
             SpeechManager.shared.speak("What should we call you? Type your name, or press and hold to speak it.", interrupt: true, delay: 0.2)
             focusedField = .name
@@ -370,7 +459,7 @@ struct OnboardingView: View {
             SpeechManager.shared.speak("What is your student I D? Type it, or press and hold to speak it.", interrupt: true, delay: 0.2)
             focusedField = .studentId
         case .howItWorks:
-            SpeechManager.shared.speak("The home screen uses swipe gestures. Swipe up for Navigation, left for Scan Surroundings, right for Report ADA Issue, and down for Request Help. Press anywhere on the screen or press continue when ready.", interrupt: true, delay: 0.2)
+            SpeechManager.shared.speak("The home screen uses swipe gestures. Swipe up for Navigation, left for Scan Surroundings, right for Report ADA Issue, and down for Request Help.", interrupt: true, delay: 0.2)
         case .complete:
             SpeechManager.shared.speak("You're all set. Press open AccessAbility to go to the home screen.", interrupt: true, delay: 0.2)
         }

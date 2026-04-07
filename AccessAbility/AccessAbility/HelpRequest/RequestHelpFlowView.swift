@@ -2,14 +2,15 @@ import SwiftUI
 import UIKit
 
 struct RequestHelpFlowView: View {
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
-        RequestHelpCategorySelectionView()
+        RequestHelpCategorySelectionView(dismissToHome: { dismiss() })
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .accessibilityIdentifier("requestHelp.screen")
     }
 }
-
 private enum SwipeSelectionDirection: Hashable {
     case up
     case right
@@ -311,6 +312,7 @@ private struct SwipeSelectionPad<Value: Hashable>: View {
 }
 
 private struct RequestHelpCategorySelectionView: View {
+    let dismissToHome: () -> Void
     @State private var selectedCategory: HelpCategory?
 
     private let categories: [SwipeSelectionOption<HelpCategory>] = [
@@ -362,7 +364,7 @@ private struct RequestHelpCategorySelectionView: View {
             selectedCategory = category
         }
         .navigationDestination(item: $selectedCategory) { category in
-            RequestHelpUrgencySelectionView(category: category)
+            RequestHelpUrgencySelectionView(category: category, dismissToHome: dismissToHome)
         }
         .onAppear {
             SpeechManager.shared.speak(
@@ -375,6 +377,7 @@ private struct RequestHelpCategorySelectionView: View {
 
 private struct RequestHelpUrgencySelectionView: View {
     let category: HelpCategory
+    let dismissToHome: () -> Void
     @State private var selectedUrgency: HelpUrgency?
 
     private var urgencyOptions: [SwipeSelectionOption<HelpUrgency>] {
@@ -412,7 +415,7 @@ private struct RequestHelpUrgencySelectionView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $selectedUrgency) { urgency in
-            RequestHelpAudioDetailsView(category: category, urgency: urgency)
+            RequestHelpAudioDetailsView(category: category, urgency: urgency, dismissToHome: dismissToHome)
         }
         .onAppear {
             SpeechManager.shared.speak(
@@ -426,7 +429,9 @@ private struct RequestHelpUrgencySelectionView: View {
 private struct RequestHelpAudioDetailsView: View {
     let category: HelpCategory
     let urgency: HelpUrgency
+    let dismissToHome: () -> Void
 
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var audioRecorder = AudioRecorder()
     @State private var isPressing = false
     @State private var pulse = false
@@ -486,7 +491,7 @@ private struct RequestHelpAudioDetailsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("requestHelp.audioDetails")
         .alert("Request Submitted", isPresented: $showingSubmitConfirmation) {
-            Button("OK") { }
+            Button("OK") { dismissToHome() }
         } message: {
             Text("Your \(urgency.title.lowercased()) request for \(category.title.lowercased()) has been submitted.")
         }
