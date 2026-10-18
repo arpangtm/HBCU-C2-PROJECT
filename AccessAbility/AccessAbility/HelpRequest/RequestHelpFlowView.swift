@@ -440,61 +440,105 @@ private struct RequestHelpAudioDetailsView: View {
 
     var body: some View {
         ZStack {
-            (isPressing ? Color.gray.opacity(0.7) : urgency.color)
-                .ignoresSafeArea()
+            if showingSubmitConfirmation {
+                // Post-submission: full screen confirmation + large home tap zone
+                VStack(spacing: 0) {
+                    VStack(spacing: 24) {
+                        Spacer()
 
-            VStack(spacing: 28) {
-                Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 80, weight: .bold))
+                            .foregroundStyle(.white)
 
-                ZStack {
-                    Circle()
-                        .stroke(.white.opacity(isPressing ? 0.36 : 0.12), lineWidth: 10)
-                        .frame(width: 164, height: 164)
-                        .scaleEffect(isPressing && pulse ? 1.18 : 1)
-                        .opacity(isPressing && pulse ? 0.35 : 1)
-                        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulse)
+                        Text("Request Submitted")
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
 
-                    Image(systemName: isPressing ? "mic.fill" : (audioRecorder.hasRecording ? "checkmark.circle.fill" : "mic.circle.fill"))
-                        .font(.system(size: 112, weight: .bold))
-                        .foregroundStyle(.white)
-                        .scaleEffect(isPressing ? 1.12 : 1)
-                        .animation(.easeInOut(duration: 0.15), value: isPressing)
+                        Text("Your \(urgency.title.lowercased()) request for \(category.title.lowercased()) has been sent.")
+                            .font(.title3)
+                            .foregroundStyle(.white.opacity(0.84))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 28)
+
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(urgency.color.ignoresSafeArea())
+
+                    // Large back to home tap zone
+                    VStack(spacing: 6) {
+                        Image(systemName: "house.circle.fill")
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundStyle(urgency.color)
+                        Text("Back to Home")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(urgency.color)
+                        Text("Tap anywhere in this area")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(urgency.color.opacity(0.7))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 100)
+                    .background(Color.white)
+                    .contentShape(Rectangle())
+                    .onTapGesture { dismissToHome() }
+                    .accessibilityLabel("Back to Home")
+                    .accessibilityHint("Tap anywhere in this area to return to the home screen")
                 }
+                .ignoresSafeArea(edges: .bottom)
+            } else {
+                (isPressing ? Color.gray.opacity(0.7) : urgency.color)
+                    .ignoresSafeArea()
 
-                Text(isPressing ? "Recording...\nRelease to send" : "Press and hold anywhere to record")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(8)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.78)
-                    .padding(.horizontal, 24)
+                VStack(spacing: 28) {
+                    Spacer()
 
-                Text("\(urgency.title) request: \(category.title)")
-                    .font(.headline)
-                    .foregroundStyle(.white.opacity(0.84))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                    ZStack {
+                        Circle()
+                            .stroke(.white.opacity(isPressing ? 0.36 : 0.12), lineWidth: 10)
+                            .frame(width: 164, height: 164)
+                            .scaleEffect(isPressing && pulse ? 1.18 : 1)
+                            .opacity(isPressing && pulse ? 0.35 : 1)
+                            .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulse)
 
-                Text("Your audio note will be attached to the request when you release.")
-                    .font(.body)
-                    .foregroundStyle(.white.opacity(0.78))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 28)
+                        Image(systemName: isPressing ? "mic.fill" : (audioRecorder.hasRecording ? "checkmark.circle.fill" : "mic.circle.fill"))
+                            .font(.system(size: 112, weight: .bold))
+                            .foregroundStyle(.white)
+                            .scaleEffect(isPressing ? 1.12 : 1)
+                            .animation(.easeInOut(duration: 0.15), value: isPressing)
+                    }
 
-                Spacer()
+                    Text(isPressing ? "Recording...\nRelease to send" : "Press and hold anywhere to record")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(8)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.78)
+                        .padding(.horizontal, 24)
+
+                    Text("\(urgency.title) request: \(category.title)")
+                        .font(.headline)
+                        .foregroundStyle(.white.opacity(0.84))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+
+                    Text("Your audio note will be attached to the request when you release.")
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(0.78))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+                .highPriorityGesture(recordingGesture)
             }
         }
-        .contentShape(Rectangle())
-        .highPriorityGesture(recordingGesture)
         .navigationTitle("Record Details")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("requestHelp.audioDetails")
-        .alert("Request Submitted", isPresented: $showingSubmitConfirmation) {
-            Button("OK") { dismissToHome() }
-        } message: {
-            Text("Your \(urgency.title.lowercased()) request for \(category.title.lowercased()) has been submitted.")
-        }
         .onAppear {
             audioRecorder.requestPermission()
             SpeechManager.shared.speak(
@@ -527,8 +571,10 @@ private struct RequestHelpAudioDetailsView: View {
 
     private func submitRequest(audioURL: URL?) {
         submittedRequest = AssistanceRequest(category: category.title, urgency: urgency.title, audioFileURL: audioURL)
-        showingSubmitConfirmation = true
-        SpeechManager.shared.speak("Your request has been submitted.", interrupt: true)
+        SpeechManager.shared.speak("Your request has been submitted. Tap the bottom of the screen to go back home.", interrupt: true)
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showingSubmitConfirmation = true
+        }
     }
 }
 

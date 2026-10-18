@@ -167,39 +167,61 @@ struct CameraCaptureScreen: View {
     }
 
     private var controlsCard: some View {
-        VStack(spacing: 16) {
-            Button {
+        VStack(spacing: 14) {
+            // Large capture tap zone
+            VStack(spacing: 6) {
+                Image(systemName: viewModel.isProcessing ? "hourglass" : "camera.circle.fill")
+                    .font(.system(size: 36, weight: .bold))
+                    .foregroundStyle(viewModel.canCapture ? Color.black : Color.white.opacity(0.5))
+                Text(viewModel.isProcessing ? "Analyzing..." : "Tap to Capture Photo")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(viewModel.canCapture ? Color.black : Color.white.opacity(0.5))
+                Text(viewModel.canCapture ? "Tap anywhere in this area" : "Camera not ready")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(viewModel.canCapture ? Color.black.opacity(0.6) : Color.white.opacity(0.35))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 100)
+            .background(viewModel.canCapture ? Color.white : Color.gray.opacity(0.25))
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard viewModel.canCapture else { return }
                 SpeechManager.shared.speak("Capturing photo.", interrupt: true)
                 viewModel.capturePhoto()
-            } label: {
-                Label(viewModel.isProcessing ? "Analyzing..." : "Press to Capture", systemImage: "camera.circle.fill")
-                    .font(.title3.weight(.bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(viewModel.canCapture ? Color.white : Color.gray.opacity(0.45))
-                    .foregroundStyle(viewModel.canCapture ? Color.black : Color.white.opacity(0.75))
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
-            .disabled(!viewModel.canCapture)
+            .accessibilityLabel(viewModel.isProcessing ? "Analyzing" : "Capture photo")
+            .accessibilityHint("Tap anywhere in this area to take a photo")
             .accessibilityIdentifier("camera.capture")
 
             if viewModel.result != nil || viewModel.lastCapturedImage != nil {
-                Button {
+                // Large retake tap zone
+                VStack(spacing: 6) {
+                    Image(systemName: "arrow.counterclockwise.circle.fill")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Retake Photo")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.white)
+                    Text("Tap anywhere in this area")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 88)
+                .background(Color.white.opacity(0.10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .contentShape(Rectangle())
+                .onTapGesture {
                     viewModel.retake()
                     SpeechManager.shared.speak("Ready for another photo.", interrupt: true)
-                } label: {
-                    Text("Retake")
-                        .font(.headline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.white.opacity(0.08))
-                        .foregroundStyle(.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
+                .accessibilityLabel("Retake photo")
+                .accessibilityHint("Tap anywhere in this area to take another photo")
                 .accessibilityIdentifier("camera.retake")
             }
         }
